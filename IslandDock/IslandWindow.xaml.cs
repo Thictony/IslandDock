@@ -204,6 +204,8 @@ public partial class IslandWindow : Window
         displays.Items.Add(new MenuItem());
         var undockAll = new MenuItem { Header = "Undock all windows" };
         undockAll.Click += (_, _) => UndockAll();
+        var update = new MenuItem { Header = UpdateLabel };
+        update.Click += (_, _) => CheckForUpdates();
         var tour = new MenuItem { Header = "Show the tour again" };
         tour.Click += (_, _) => Tutorial.Open();
         var exit = new MenuItem { Header = "Exit Island" };
@@ -219,6 +221,7 @@ public partial class IslandWindow : Window
         m.Items.Add(displays);
         m.Items.Add(undockAll);
         m.Items.Add(tour);
+        m.Items.Add(update);
         m.Items.Add(new Separator());
         m.Items.Add(exit);
         m.Opened += (_, _) =>
@@ -231,6 +234,8 @@ public partial class IslandWindow : Window
             winKey.IsChecked = settings.WinKeyOpensIsland;
             fadeAll.IsChecked = settings.FadeOnOtherDisplays;
             notify.IsChecked = settings.IslandNotifications;
+            update.Header = UpdateLabel;
+            update.IsEnabled = !Updater.Busy;
             displays.Items.Clear();
             var screens = Forms.Screen.AllScreens;
             foreach (var s in screens)

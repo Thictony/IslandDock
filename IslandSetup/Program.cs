@@ -21,6 +21,14 @@ internal static class Program
         Application.SetCompatibleTextRenderingDefault(false);
         bool quiet = args.Any(a => a.Equals("/quiet", StringComparison.OrdinalIgnoreCase));
         bool install = Setup.HasPayload;
+        // The island's update link: keeps the user's shortcut and startup choices, and reopens the island either way.
+        if (install && args.Any(a => a.Equals("/update", StringComparison.OrdinalIgnoreCase)))
+        {
+            try { Setup.Install(desktopShortcut: false, _ => { }, update: true); }
+            catch (Exception ex) { MessageBox.Show("IslandDock couldn't be updated.\n\n" + ex.Message + "\n\nYou can download it again from https://github.com/Thictony/IslandDock/releases", "IslandDock"); }
+            try { Setup.Launch(); } catch { }
+            return;
+        }
         if (quiet)
         {
             try
@@ -57,7 +65,7 @@ internal static class Setup
     public static bool HasPayload => Assembly.GetExecutingAssembly().GetManifestResourceInfo("payload.zip") != null;
     public static bool IsInstalled => File.Exists(AppExe);
 
-    public static void Install(bool desktopShortcut, Action<string> status)
+    public static void Install(bool desktopShortcut, Action<string> status, bool update = false)
     {
         status("Closing IslandDock…");
         CloseRunningIsland();
@@ -82,8 +90,11 @@ internal static class Setup
 
         status("Adding shortcuts…");
         CreateShortcut(StartMenuShortcut, AppExe);
-        if (desktopShortcut) CreateShortcut(DesktopShortcut, AppExe);
-        else TryDelete(DesktopShortcut);
+        if (!update)
+        {
+            if (desktopShortcut) CreateShortcut(DesktopShortcut, AppExe);
+            else TryDelete(DesktopShortcut);
+        }
 
         status("Registering…");
         long size = Directory.GetFiles(InstallDir, "*", SearchOption.AllDirectories).Sum(f => new FileInfo(f).Length) / 1024;
@@ -102,7 +113,7 @@ internal static class Setup
             key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
         }
         // Starts with Windows by default; the island's own menu turns this off.
-        using (var run = Registry.CurrentUser.CreateSubKey(RunKey)) run.SetValue(AppName, $"\"{AppExe}\"");
+        if (!update) using (var run = Registry.CurrentUser.CreateSubKey(RunKey)) run.SetValue(AppName, $"\"{AppExe}\"");
         status("Done");
     }
 

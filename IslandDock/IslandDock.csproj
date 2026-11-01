@@ -11,6 +11,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>IslandDock</AssemblyName>
     <RootNamespace>IslandDock</RootNamespace>
+    <Version>1.0.1</Version>
     <StartupObject>IslandDock.Program</StartupObject>
     <!-- DPI awareness is declared in app.manifest because this is a WPF app, not a WinForms one. -->
     <NoWarn>$(NoWarn);WFO0003</NoWarn>
