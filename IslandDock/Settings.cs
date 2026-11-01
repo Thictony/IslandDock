@@ -24,13 +24,13 @@ internal sealed class Settings
     public bool? SoftwareRendering { get; set; }
 
     /// <summary>Hides the Windows taskbar while the island runs.</summary>
-    public bool HideTaskbar { get; set; }
+    public bool HideTaskbar { get; set; } = true;
     /// <summary>Alt+Tab opens the island and steps through its docked tabs (Windows' own when nothing is docked).</summary>
     public bool AltTabSwitchesTabs { get; set; } = true;
     /// <summary>The Windows key on its own opens or closes the island instead of Start.</summary>
     public bool WinKeyOpensIsland { get; set; } = true;
     /// <summary>A game or fullscreen video fades the islands on every display, not just the one it's on.</summary>
-    public bool FadeOnOtherDisplays { get; set; }
+    public bool FadeOnOtherDisplays { get; set; } = true;
     /// <summary>Windows notifications also show in the island.</summary>
     public bool IslandNotifications { get; set; } = true;
     /// <summary>Windows' own pop-ups are off while the island shows notifications, so each one only appears once.</summary>

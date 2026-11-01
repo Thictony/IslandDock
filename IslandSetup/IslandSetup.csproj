@@ -14,7 +14,7 @@
     <ApplicationManifest>setup.manifest</ApplicationManifest>
     <AssemblyName>IslandSetup</AssemblyName>
     <RootNamespace>IslandSetup</RootNamespace>
-    <Version>1.0.4</Version>
+    <Version>1.0.5</Version>
     <Product>IslandDock</Product>
   </PropertyGroup>
 
