@@ -446,6 +446,7 @@
                                 FontFamily="Segoe UI Variable Text, Segoe UI" Content="100%" ToolTip="Reset size" Click="ScaleReset_Click"/>
                         <Button x:Name="ScaleUpButton" Style="{StaticResource IconButton}" Content="&#xE8A3;" ToolTip="Larger" Click="ScaleUp_Click"/>
                         <Border Width="1" Height="18" Background="#33FFFFFF" Margin="4,0"/>
+                        <Button x:Name="LocationButton" Style="{StaticResource IconButton}" Content="&#xE707;" ToolTip="Docking location" Click="LocationButton_Click"/>
                         <Button x:Name="TrayButton" Style="{StaticResource IconButton}" Content="&#xE70E;" ToolTip="Tray apps" Click="TrayButton_Click"/>
                         <Button x:Name="AddButton" Style="{StaticResource IconButton}" Content="&#xE710;" ToolTip="Dock a window" Click="AddButton_Click"/>
                         <Button x:Name="PopOutButton" Style="{StaticResource IconButton}" Content="&#xE8A7;" ToolTip="Pop out current window" Click="PopOut_Click"/>
@@ -687,6 +688,17 @@
                                     </StackPanel>
                                 </ScrollViewer>
                             </Grid>
+                        </Border>
+
+                        <!-- Where the island sits, picked on a little map of the screen -->
+                        <Border x:Name="LocationPanel" Visibility="Collapsed" Width="330" Margin="0,6,6,6" Padding="6"
+                                HorizontalAlignment="Right" VerticalAlignment="Top" CornerRadius="12"
+                                Background="#FF1E1E20" BorderBrush="#26FFFFFF" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="Docking location" Foreground="#EEFFFFFF" FontSize="13" FontWeight="SemiBold" Margin="10,6,0,8"/>
+                                <UniformGrid x:Name="SpotGrid" Rows="3" Columns="3"/>
+                                <TextBlock Text="Or hold the island, then drag it along any edge." Foreground="#88FFFFFF" FontSize="11" Margin="10,6,0,6"/>
+                            </StackPanel>
                         </Border>
 
                         <Grid x:Name="DropOverlay" Visibility="Collapsed" Margin="10">

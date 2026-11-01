@@ -59,7 +59,7 @@ public partial class IslandWindow : Window
     bool focusOnShow;
     /// <summary>Set by a click on the closed island; the next frame opens it.</summary>
     bool openRequested;
-    bool expanded, pinned, pickerOpen, mixerOpen, searchOpen, trayOpen, menuOpen, exiting;
+    bool expanded, pinned, pickerOpen, mixerOpen, searchOpen, trayOpen, spotsOpen, menuOpen, exiting;
     TimeSpan? leaveSince, hoverSince;
     /// <summary>Opened by Alt+Tab or the Windows key; see <see cref="Frame"/>.</summary>
     bool keyOpened, closeRequested;
@@ -202,6 +202,8 @@ public partial class IslandWindow : Window
         // An island per display, each switched on or off here; filled in when the menu opens, as displays come and go.
         var displays = new MenuItem { Header = "Island on displays" };
         displays.Items.Add(new MenuItem());
+        var location = new MenuItem { Header = "Docking location" };
+        location.Click += (_, _) => OpenLocationPanel();
         var undockAll = new MenuItem { Header = "Undock all windows" };
         undockAll.Click += (_, _) => UndockAll();
         var update = new MenuItem { Header = UpdateLabel };
@@ -219,6 +221,7 @@ public partial class IslandWindow : Window
         m.Items.Add(fadeAll);
         m.Items.Add(notify);
         m.Items.Add(displays);
+        m.Items.Add(location);
         m.Items.Add(undockAll);
         m.Items.Add(tour);
         m.Items.Add(update);
@@ -503,7 +506,7 @@ public partial class IslandWindow : Window
                 bool moved = Math.Abs(dx) > 6 || Math.Abs(dy) > 6;
                 if (moveArmed)
                 {
-                    if (moved) { dragging = true; pickerOpen = mixerOpen = searchOpen = trayOpen = false; }
+                    if (moved) { dragging = true; pickerOpen = mixerOpen = searchOpen = trayOpen = spotsOpen = false; }
                 }
                 else if (!pressMoved)
                 {
@@ -555,7 +558,7 @@ public partial class IslandWindow : Window
             expanded = want;
             // Opening hands the keyboard to the active tab once it's shown, so typing works without a click first.
             focusOnShow = expanded;
-            if (!expanded) pickerOpen = mixerOpen = searchOpen = trayOpen = false;
+            if (!expanded) pickerOpen = mixerOpen = searchOpen = trayOpen = spotsOpen = false;
         }
 
         // A notification waits while the island is open (dropped if that's long), then shows for a few seconds,
@@ -648,6 +651,7 @@ public partial class IslandWindow : Window
             int ox = (int)Math.Ceiling(target.Width * 0.15), oy = (int)Math.Ceiling(target.Height * 0.15);
             t = new RECT { Left = t.Left - ox, Top = t.Top - oy, Right = t.Right + ox, Bottom = t.Bottom + oy };
             frame = Union(Union(r, t), applied.Width > 0 ? applied : r);
+            frame = WithinDesktop(frame);
         }
         else if (!dragging && applied.Width > 0 && r.Left >= applied.Left && r.Top >= applied.Top
                  && r.Right <= applied.Right && r.Bottom <= applied.Bottom)
@@ -676,6 +680,14 @@ public partial class IslandWindow : Window
         const double w = SpringFrequency;
         v += (w * w * (target - x) - 2 * zeta * w * v) * dt;
         x += v * dt;
+    }
+
+    // Windows won't make a window much taller or wider than the desktop, and the panel would be squeezed to fit what's
+    // left. A frame spanning the screen comes up when the island moves from one edge to the opposite one while open.
+    static RECT WithinDesktop(RECT f)
+    {
+        var d = Forms.SystemInformation.VirtualScreen;
+        return new RECT { Left = Math.Max(f.Left, d.Left), Top = Math.Max(f.Top, d.Top), Right = Math.Min(f.Right, d.Right), Bottom = Math.Min(f.Bottom, d.Bottom) };
     }
 
     static RECT Union(RECT a, RECT b) => new()
@@ -745,8 +757,9 @@ public partial class IslandWindow : Window
         SearchPanel.Visibility = searchOpen && !pickerOpen && !dropHover ? Visibility.Visible : Visibility.Collapsed;
         MixerPanel.Visibility = mixerOpen && !pickerOpen && !searchOpen && !dropHover ? Visibility.Visible : Visibility.Collapsed;
         TrayPanel.Visibility = trayOpen && !pickerOpen && !searchOpen && !mixerOpen && !dropHover ? Visibility.Visible : Visibility.Collapsed;
+        LocationPanel.Visibility = spotsOpen && !pickerOpen && !searchOpen && !mixerOpen && !trayOpen && !dropHover ? Visibility.Visible : Visibility.Collapsed;
         TrayEmpty.Visibility = trayApps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        EmptyHint.Visibility = active == null && !pickerOpen && !mixerOpen && !searchOpen && !trayOpen && !dropHover ? Visibility.Visible : Visibility.Collapsed;
+        EmptyHint.Visibility = active == null && !pickerOpen && !mixerOpen && !searchOpen && !trayOpen && !spotsOpen && !dropHover ? Visibility.Visible : Visibility.Collapsed;
         PopOutButton.IsEnabled = active != null;
     }
 
@@ -779,7 +792,7 @@ public partial class IslandWindow : Window
         // Leave a floating window alone while the user is dragging it (dragging it away undocks it).
         if (active is { Floating: true } && active.Handle == dropCandidate) return;
 
-        bool show = expanded && settled && active != null && !pickerOpen && !mixerOpen && !searchOpen && !trayOpen && !dropHover && !dragging
+        bool show = expanded && settled && active != null && !pickerOpen && !mixerOpen && !searchOpen && !trayOpen && !spotsOpen && !dropHover && !dragging
                     && ExpandedView.IsVisible && ContentArea.ActualWidth > 0;
         if (!show)
         {
@@ -1086,7 +1099,7 @@ public partial class IslandWindow : Window
             if (fg == host.Handle) host.PassFocus(d.Handle);
             else SetForegroundWindow(host.Handle);
         }
-        pickerOpen = mixerOpen = searchOpen = trayOpen = false;
+        pickerOpen = mixerOpen = searchOpen = trayOpen = spotsOpen = false;
         RefreshTabs();
         UpdateScaleUi();
     }
@@ -1330,7 +1343,7 @@ public partial class IslandWindow : Window
     void TrayButton_Click(object sender, RoutedEventArgs e)
     {
         trayOpen = !trayOpen;
-        pickerOpen = mixerOpen = searchOpen = false;
+        pickerOpen = mixerOpen = searchOpen = spotsOpen = false;
         if (trayOpen) trayCheckedAt = DateTime.MinValue; // list it fresh
     }
 
@@ -1719,7 +1732,7 @@ public partial class IslandWindow : Window
     void AddButton_Click(object sender, RoutedEventArgs e)
     {
         pickerOpen = !pickerOpen;
-        mixerOpen = searchOpen = trayOpen = false;
+        mixerOpen = searchOpen = trayOpen = spotsOpen = false;
         if (pickerOpen)
             PickerList.ItemsSource = WindowUtil.EnumerateCandidates(docked.Select(d => d.Handle).ToHashSet());
     }

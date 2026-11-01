@@ -119,7 +119,7 @@ public partial class IslandWindow
     void SoundOutput_Click(object sender, RoutedEventArgs e)
     {
         mixerOpen = !mixerOpen;
-        pickerOpen = searchOpen = trayOpen = false;
+        pickerOpen = searchOpen = trayOpen = spotsOpen = false;
         if (mixerOpen) { mixerApps.Clear(); RefreshMixer(); }
     }
 
