@@ -3,24 +3,27 @@ using System.Threading.Tasks;
 
 namespace IslandDock;
 
-// The menu's update link.
+// The menu's update link, and the same question soon after starting.
 public partial class IslandWindow
 {
     static string UpdateLabel => Updater.Busy ? "Downloading the update…"
         : Updater.Available is UpdateInfo u ? $"Update to version {u.Version} (you have {Updater.Current})"
         : $"Check for updates (version {Updater.Current})";
 
-    /// <summary>A quiet check soon after starting, so the menu's link can say when there's an update.</summary>
+    /// <summary>A check soon after starting: when this copy is behind the latest release, it asks to update.</summary>
     internal static async void CheckForUpdatesInBackground()
     {
         await Task.Delay(TimeSpan.FromSeconds(15));
+        if (Updater.Busy) return; // the menu's link got there first
         Updater.CleanUp();
+        Updater.Busy = true;
         try
         {
             if (await Updater.CheckAsync() is UpdateInfo u && Islands.All.Count > 0)
-                Islands.All[0].ShowStatus($"Update {u.Version} available: see the right-click menu");
+                await Islands.All[0].OfferUpdate(u);
         }
         catch { } // Offline, most likely. The menu's link reports problems when it's asked directly.
+        finally { Updater.Busy = false; }
     }
 
     async void CheckForUpdates()
@@ -41,15 +44,20 @@ public partial class IslandWindow
                 Updater.Tell($"IslandDock is up to date (version {Updater.Current}).");
                 return;
             }
-            if (!Updater.Ask($"Version {update.Version} is available. You have {Updater.Current}.\n\n"
-                + "Update now? It downloads in the background, then the island closes and reopens by itself. "
-                + "Docked windows go back to being normal windows, and your settings are kept."))
-                return;
-
-            ShowStatus("Downloading the update…");
-            try { Updater.RunInstaller(await Updater.DownloadAsync(update)); }
-            catch (Exception ex) { Updater.Tell("Couldn't download the update.\n\n" + ex.Message); }
+            await OfferUpdate(update);
         }
         finally { Updater.Busy = false; }
+    }
+
+    async Task OfferUpdate(UpdateInfo update)
+    {
+        if (!Updater.Ask($"Version {update.Version} is available. You have {Updater.Current}.\n\n"
+            + "Update now? It downloads in the background, then the island closes and reopens by itself. "
+            + "Docked windows go back to being normal windows, and your settings are kept."))
+            return;
+
+        ShowStatus("Downloading the update…");
+        try { Updater.RunInstaller(await Updater.DownloadAsync(update)); }
+        catch (Exception ex) { Updater.Tell("Couldn't download the update.\n\n" + ex.Message); }
     }
 }

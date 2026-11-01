@@ -48,7 +48,7 @@ internal static class Islands
         Notifications.Arrived += Notify;
         Notifications.Apply();
         if (!Settings.TutorialDone) dispatcher.InvokeAsync(Tutorial.Open, DispatcherPriority.ApplicationIdle);
-        IslandWindow.CheckForUpdatesInBackground();
+        dispatcher.InvokeAsync(IslandWindow.CheckForUpdatesInBackground, DispatcherPriority.ApplicationIdle);
     }
 
     /// <summary>A notification goes to the island on the display being used: the one with the window in front.</summary>

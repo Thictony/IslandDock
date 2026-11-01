@@ -95,11 +95,12 @@ internal static class Updater
         catch { }
     }
 
-    const uint MB_YESNO = 0x4, MB_ICONINFORMATION = 0x40, MB_SETFOREGROUND = 0x10000, MB_TOPMOST = 0x40000;
+    const uint MB_YESNO = 0x4, MB_ICONINFORMATION = 0x40, MB_DEFBUTTON2 = 0x100, MB_SETFOREGROUND = 0x10000, MB_TOPMOST = 0x40000;
     const int IDYES = 6;
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int MessageBoxW(IntPtr owner, string text, string caption, uint type);
 
     // Docked windows are topmost, so a plain dialog could open behind them.
     public static void Tell(string text) => MessageBoxW(IntPtr.Zero, text, "IslandDock", MB_ICONINFORMATION | MB_SETFOREGROUND | MB_TOPMOST);
-    public static bool Ask(string text) => MessageBoxW(IntPtr.Zero, text, "IslandDock", MB_YESNO | MB_ICONINFORMATION | MB_SETFOREGROUND | MB_TOPMOST) == IDYES;
+    // No is the default: this can open while someone is typing, and Enter or Space shouldn't start an update.
+    public static bool Ask(string text) => MessageBoxW(IntPtr.Zero, text, "IslandDock", MB_YESNO | MB_DEFBUTTON2 | MB_ICONINFORMATION | MB_SETFOREGROUND | MB_TOPMOST) == IDYES;
 }
