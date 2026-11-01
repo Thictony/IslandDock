@@ -536,6 +536,7 @@ public partial class IslandWindow : Window
         bool over = hasRect && bounds.Contains(p.X, p.Y);
         var slop = bounds; slop.Inflate(DropSlop * k, DropSlop * k);
         dropHover = dropCandidate != IntPtr.Zero && hasRect && slop.Contains(p.X, p.Y);
+        WatchFileDragOut(p, mouseDown, over, slop);
 
         // Mouse capture covers dragging the volume slider out past the island's edge.
         // Typing into a docked window counts too, so the island doesn't snap shut when the mouse drifts off it. Not over
