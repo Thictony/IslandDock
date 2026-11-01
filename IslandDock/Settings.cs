@@ -31,8 +31,10 @@ internal sealed class Settings
     public bool WinKeyOpensIsland { get; set; } = true;
     /// <summary>A game or fullscreen video fades the islands on every display, not just the one it's on.</summary>
     public bool FadeOnOtherDisplays { get; set; }
-    /// <summary>Windows notifications are shown by the island instead of as Windows' own pop-ups.</summary>
+    /// <summary>Windows notifications also show in the island.</summary>
     public bool IslandNotifications { get; set; } = true;
+    /// <summary>Windows' own pop-ups are off while the island shows notifications, so each one only appears once.</summary>
+    public bool HideWindowsBanners { get; set; } = true;
     /// <summary>The first-run tour has been seen (finished or skipped).</summary>
     public bool TutorialDone { get; set; }
     /// <summary>Apps pinned from the island, after the Windows taskbar's own pins (exe paths or shell:AppsFolder\ links).</summary>

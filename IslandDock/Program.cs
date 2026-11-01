@@ -34,7 +34,11 @@ internal static class Program
             Islands.UndockAll();
             e.Handled = true;
         };
-        app.SessionEnding += (_, _) => Islands.UndockAll();
+        app.SessionEnding += (_, _) =>
+        {
+            Islands.UndockAll();
+            Notifications.Stop(); // the pop-ups stay on if the island doesn't start with Windows next time
+        };
 
         Islands.Start();
         app.Run();

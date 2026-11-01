@@ -161,6 +161,7 @@ internal static class Islands
         exiting = true;
         SystemEvents.DisplaySettingsChanged -= OnDisplaysChanged;
         KeyboardHook.Stop();
+        Notifications.Stop();
         foreach (var island in All.ToList()) island.Shut();
         ApplyTaskbar(); // exiting: brings the taskbar back, but remembers to hide it next time
         Application.Current.Shutdown();

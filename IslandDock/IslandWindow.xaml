@@ -183,6 +183,32 @@
             </Setter>
         </Style>
 
+        <!-- A panel's answer. Not focusable, so typing can't press it. -->
+        <Style x:Key="PanelButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Foreground" Value="#EEFFFFFF"/>
+            <Setter Property="Background" Value="#24FFFFFF"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="8" Padding="14,6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="b" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Right-click menus, dark and rounded like the island. Its items pick up the styles inside it, submenus too. -->
         <Style x:Key="IslandMenu" TargetType="ContextMenu">
             <Setter Property="OverridesDefaultStyle" Value="True"/>
@@ -216,17 +242,19 @@
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="MenuItem">
-                                <Border x:Name="Bd" Background="Transparent" CornerRadius="7" Margin="5,1" Padding="8,7,12,7">
+                                <Border x:Name="Bd" Background="Transparent" CornerRadius="7" Margin="5,1" Padding="10,7,12,7">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="22"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock x:Name="Check" Text="&#xE73E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12"
-                                                   VerticalAlignment="Center" Foreground="#FF4CC2FF" Visibility="Hidden"/>
-                                        <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="Arrow" Grid.Column="2" Text="&#xE76C;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10"
+                                        <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
+                                        <!-- An on/off item's switch. -->
+                                        <Border x:Name="Switch" Grid.Column="1" Width="30" Height="16" CornerRadius="8" Margin="18,0,0,0" VerticalAlignment="Center"
+                                                Background="#1FFFFFFF" BorderBrush="#66FFFFFF" BorderThickness="1" Visibility="Collapsed">
+                                            <Ellipse x:Name="Knob" Width="10" Height="10" Margin="2,0" Fill="#CCFFFFFF" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock x:Name="Arrow" Grid.Column="1" Text="&#xE76C;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10"
                                                    VerticalAlignment="Center" Margin="14,0,0,0" Opacity="0.7" Visibility="Collapsed"/>
                                         <Popup x:Name="PART_Popup" Placement="Right" HorizontalOffset="10" VerticalOffset="-8" AllowsTransparency="True"
                                                Focusable="False" PopupAnimation="Fade"
@@ -241,8 +269,14 @@
                                     <Trigger Property="IsHighlighted" Value="True">
                                         <Setter TargetName="Bd" Property="Background" Value="#24FFFFFF"/>
                                     </Trigger>
+                                    <Trigger Property="IsCheckable" Value="True">
+                                        <Setter TargetName="Switch" Property="Visibility" Value="Visible"/>
+                                    </Trigger>
                                     <Trigger Property="IsChecked" Value="True">
-                                        <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+                                        <Setter TargetName="Switch" Property="Background" Value="#FF4CC2FF"/>
+                                        <Setter TargetName="Switch" Property="BorderBrush" Value="#FF4CC2FF"/>
+                                        <Setter TargetName="Knob" Property="Fill" Value="#FF101010"/>
+                                        <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right"/>
                                     </Trigger>
                                     <Trigger Property="HasItems" Value="True">
                                         <Setter TargetName="Arrow" Property="Visibility" Value="Visible"/>
@@ -254,6 +288,12 @@
                             </ControlTemplate>
                         </Setter.Value>
                     </Setter>
+                    <!-- Flipping a switch leaves the menu up, so several can be set in one go. -->
+                    <Style.Triggers>
+                        <Trigger Property="IsCheckable" Value="True">
+                            <Setter Property="StaysOpenOnClick" Value="True"/>
+                        </Trigger>
+                    </Style.Triggers>
                 </Style>
             </Style.Resources>
         </Style>
@@ -698,6 +738,20 @@
                                 <TextBlock Text="Docking location" Foreground="#EEFFFFFF" FontSize="13" FontWeight="SemiBold" Margin="10,6,0,8"/>
                                 <UniformGrid x:Name="SpotGrid" Rows="3" Columns="3"/>
                                 <TextBlock Text="Or hold the island, then drag it along any edge." Foreground="#88FFFFFF" FontSize="11" Margin="10,6,0,6"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="UpdatePanel" Visibility="Collapsed" Width="330" Margin="0,6,6,6" Padding="16,14"
+                                HorizontalAlignment="Right" VerticalAlignment="Top" CornerRadius="12"
+                                Background="#FF1E1E20" BorderBrush="#26FFFFFF" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock x:Name="UpdateTitle" Foreground="#EEFFFFFF" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="UpdateText" Foreground="#BBFFFFFF" FontSize="12" Margin="0,6,0,12" TextWrapping="Wrap" LineHeight="17"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button x:Name="UpdateDismissButton" Style="{StaticResource PanelButton}" Click="UpdateDismiss_Click"/>
+                                    <Button x:Name="UpdateNowButton" Style="{StaticResource PanelButton}" Content="Update now" Margin="8,0,0,0"
+                                            Background="{StaticResource Accent}" Foreground="White" Click="UpdateNow_Click"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 

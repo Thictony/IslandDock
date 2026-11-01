@@ -43,7 +43,7 @@ public partial class IslandWindow
     {
         if (searchOpen) return;
         searchOpen = true;
-        pickerOpen = mixerOpen = trayOpen = spotsOpen = false;
+        pickerOpen = mixerOpen = trayOpen = spotsOpen = updateOpen = false;
         SearchSources.Warm();
         Activate();
         RunSearch();

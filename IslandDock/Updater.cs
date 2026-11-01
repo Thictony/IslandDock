@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
@@ -95,12 +94,19 @@ internal static class Updater
         catch { }
     }
 
-    const uint MB_YESNO = 0x4, MB_ICONINFORMATION = 0x40, MB_DEFBUTTON2 = 0x100, MB_SETFOREGROUND = 0x10000, MB_TOPMOST = 0x40000;
-    const int IDYES = 6;
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int MessageBoxW(IntPtr owner, string text, string caption, uint type);
+    static string InstallErrorFile => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "IslandDock", "update-failed.txt");
 
-    // Docked windows are topmost, so a plain dialog could open behind them.
-    public static void Tell(string text) => MessageBoxW(IntPtr.Zero, text, "IslandDock", MB_ICONINFORMATION | MB_SETFOREGROUND | MB_TOPMOST);
-    // No is the default: this can open while someone is typing, and Enter or Space shouldn't start an update.
-    public static bool Ask(string text) => MessageBoxW(IntPtr.Zero, text, "IslandDock", MB_YESNO | MB_DEFBUTTON2 | MB_ICONINFORMATION | MB_SETFOREGROUND | MB_TOPMOST) == IDYES;
+    /// <summary>Why the installer couldn't finish the last update, if it couldn't. Reported once.</summary>
+    public static string? TakeInstallError()
+    {
+        try
+        {
+            if (!File.Exists(InstallErrorFile)) return null;
+            string message = File.ReadAllText(InstallErrorFile);
+            File.Delete(InstallErrorFile);
+            return message;
+        }
+        catch { return null; }
+    }
 }

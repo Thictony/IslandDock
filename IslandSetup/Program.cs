@@ -24,9 +24,16 @@ internal static class Program
         // The island's update link: keeps the user's shortcut and startup choices, and reopens the island either way.
         if (install && args.Any(a => a.Equals("/update", StringComparison.OrdinalIgnoreCase)))
         {
+            string failed = null;
             try { Setup.Install(desktopShortcut: false, _ => { }, update: true); }
-            catch (Exception ex) { MessageBox.Show("IslandDock couldn't be updated.\n\n" + ex.Message + "\n\nYou can download it again from https://github.com/Thictony/IslandDock/releases", "IslandDock"); }
-            try { Setup.Launch(); } catch { }
+            catch (Exception ex)
+            {
+                failed = ex.Message;
+                Setup.ReportToIsland(failed); // it shows this itself, in its update panel
+            }
+            try { Setup.Launch(); }
+            // No island left to tell, which only happens when the install broke partway.
+            catch { if (failed != null) MessageBox.Show("IslandDock couldn't be updated.\n\n" + failed + "\n\nYou can download it again from https://github.com/Thictony/IslandDock/releases", "IslandDock"); }
             return;
         }
         if (quiet)
@@ -121,6 +128,7 @@ internal static class Setup
     {
         status("Closing IslandDock…");
         CloseRunningIsland();
+        RestoreNotificationBanners();
 
         status("Removing shortcuts…");
         TryDelete(StartMenuShortcut);
@@ -143,6 +151,37 @@ internal static class Setup
             { CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden });
         else { try { Directory.Delete(InstallDir, true); } catch { } }
         status("Done");
+    }
+
+    /// <summary>The island puts Windows' notification pop-ups back when it closes; this is for one that was stopped
+    /// without closing, which still has them off.</summary>
+    static void RestoreNotificationBanners()
+    {
+        const string apps = @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings";
+        const string changed = @"Software\IslandDock\HiddenBanners";
+        try
+        {
+            using (var list = Registry.CurrentUser.OpenSubKey(changed))
+            {
+                if (list == null) return;
+                foreach (var name in list.GetValueNames())
+                    using (var app = Registry.CurrentUser.OpenSubKey(apps + "\\" + name, true))
+                        if (app?.GetValue("ShowBanner") is int banner && banner == 0) app.DeleteValue("ShowBanner", false);
+            }
+            Registry.CurrentUser.DeleteSubKeyTree(@"Software\IslandDock", false);
+        }
+        catch { }
+    }
+
+    /// <summary>Leaves word for the island of why its update failed. The same file as <c>Updater.InstallErrorFile</c>.</summary>
+    public static void ReportToIsland(string message)
+    {
+        try
+        {
+            Directory.CreateDirectory(SettingsDir);
+            File.WriteAllText(Path.Combine(SettingsDir, "update-failed.txt"), message);
+        }
+        catch { }
     }
 
     public static void Launch() => Process.Start(new ProcessStartInfo(AppExe) { UseShellExecute = true, WorkingDirectory = InstallDir });

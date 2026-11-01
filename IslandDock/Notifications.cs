@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using Windows.UI.Notifications;
 using Windows.UI.Notifications.Management;
 
@@ -39,6 +40,14 @@ internal static class Notifications
             timer.Stop();
             seen = null;
         }
+        if (!Islands.Settings.IslandNotifications || !Islands.Settings.HideWindowsBanners) WindowsBanners.Restore();
+    }
+
+    /// <summary>The island is going away, and Windows' pop-ups come back with it.</summary>
+    public static void Stop()
+    {
+        timer.Stop();
+        WindowsBanners.Restore();
     }
 
     static async void Poll(object? sender, EventArgs e)
@@ -50,7 +59,14 @@ internal static class Notifications
             var listener = UserNotificationListener.Current;
             var access = listener.GetAccessStatus();
             if (access == UserNotificationListenerAccessStatus.Unspecified) access = await listener.RequestAccessAsync();
-            if (access != UserNotificationListenerAccessStatus.Allowed) { timer.Stop(); return; }
+            if (access != UserNotificationListenerAccessStatus.Allowed)
+            {
+                // The island can't show them, so Windows' pop-ups have to.
+                WindowsBanners.Restore();
+                timer.Stop();
+                return;
+            }
+            if (Islands.Settings.HideWindowsBanners) WindowsBanners.Hide();
 
             var list = await listener.GetNotificationsAsync(NotificationKinds.Toast);
             if (seen != null)
@@ -92,4 +108,57 @@ internal static class Notifications
 
     /// <summary>Without the direction marks some apps (Discord) wrap names in.</summary>
     static string Clean(string? s) => (s ?? "").Replace("⁨", "").Replace("⁩", "").Trim();
+}
+
+/// <summary>
+/// Turns off the pop-ups Windows shows for notifications, app by app: the "Show notification banners" switch under
+/// System > Notifications in Windows' settings. Notifications still reach Windows' list, which is where the island
+/// reads them. Only for as long as the island runs and can read them; the apps it switched off are remembered in the
+/// registry, so they can be put back even after it was stopped without closing (the uninstaller does the same).
+/// </summary>
+internal static class WindowsBanners
+{
+    const string AppsKey = @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings";
+    const string ChangedKey = @"Software\IslandDock\HiddenBanners";
+    const string Banner = "ShowBanner";
+    static int appsSeen = -1;
+
+    /// <summary>Switches off any app not done yet; Windows adds an app the first time it posts a notification.</summary>
+    public static void Hide()
+    {
+        try
+        {
+            using var apps = Registry.CurrentUser.OpenSubKey(AppsKey);
+            if (apps == null || apps.SubKeyCount == appsSeen) return;
+            appsSeen = apps.SubKeyCount;
+            using var changed = Registry.CurrentUser.CreateSubKey(ChangedKey);
+            foreach (var name in apps.GetSubKeyNames())
+            {
+                using var app = apps.OpenSubKey(name, true);
+                // One that's already off was the user's choice, and stays off when the rest come back.
+                if (app == null || app.GetValue(Banner) is 0) continue;
+                changed.SetValue(name, 1);
+                app.SetValue(Banner, 0, RegistryValueKind.DWord);
+            }
+        }
+        catch { }
+    }
+
+    /// <summary>Puts back every app it switched off, unless the user has since changed it themselves.</summary>
+    public static void Restore()
+    {
+        appsSeen = -1;
+        try
+        {
+            using var changed = Registry.CurrentUser.OpenSubKey(ChangedKey);
+            if (changed == null) return;
+            foreach (var name in changed.GetValueNames())
+            {
+                using var app = Registry.CurrentUser.OpenSubKey(AppsKey + "\\" + name, true);
+                if (app?.GetValue(Banner) is 0) app.DeleteValue(Banner, false);
+            }
+        }
+        catch { return; }
+        try { Registry.CurrentUser.DeleteSubKeyTree(ChangedKey, false); } catch { }
+    }
 }

@@ -31,7 +31,7 @@ public partial class IslandWindow
     /// <summary>Opens the panel from the right-click menu, which works with the island closed and the mouse elsewhere.</summary>
     void OpenLocationPanel()
     {
-        pickerOpen = mixerOpen = searchOpen = trayOpen = false;
+        pickerOpen = mixerOpen = searchOpen = trayOpen = updateOpen = false;
         spotsOpen = true;
         ShowSpots();
         OpenFromKeyboard();
@@ -41,7 +41,7 @@ public partial class IslandWindow
     void LocationButton_Click(object sender, RoutedEventArgs e)
     {
         spotsOpen = !spotsOpen;
-        pickerOpen = mixerOpen = searchOpen = trayOpen = false;
+        pickerOpen = mixerOpen = searchOpen = trayOpen = updateOpen = false;
         if (spotsOpen) ShowSpots();
     }
 

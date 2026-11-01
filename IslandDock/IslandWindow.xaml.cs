@@ -59,7 +59,7 @@ public partial class IslandWindow : Window
     bool focusOnShow;
     /// <summary>Set by a click on the closed island; the next frame opens it.</summary>
     bool openRequested;
-    bool expanded, pinned, pickerOpen, mixerOpen, searchOpen, trayOpen, spotsOpen, menuOpen, exiting;
+    bool expanded, pinned, pickerOpen, mixerOpen, searchOpen, trayOpen, spotsOpen, updateOpen, menuOpen, exiting;
     TimeSpan? leaveSince, hoverSince;
     /// <summary>Opened by Alt+Tab or the Windows key; see <see cref="Frame"/>.</summary>
     bool keyOpened, closeRequested;
@@ -193,9 +193,17 @@ public partial class IslandWindow : Window
             settings.Save();
         };
         var notify = new MenuItem { Header = "Show notifications in the island", IsCheckable = true, IsChecked = settings.IslandNotifications };
+        var banners = new MenuItem { Header = "Hide Windows' own notification pop-ups", IsCheckable = true, IsChecked = settings.HideWindowsBanners, IsEnabled = settings.IslandNotifications };
         notify.Click += (_, _) =>
         {
             settings.IslandNotifications = notify.IsChecked;
+            banners.IsEnabled = notify.IsChecked; // with nothing in the island, the pop-ups are all there is
+            settings.Save();
+            Notifications.Apply();
+        };
+        banners.Click += (_, _) =>
+        {
+            settings.HideWindowsBanners = banners.IsChecked;
             settings.Save();
             Notifications.Apply();
         };
@@ -220,6 +228,7 @@ public partial class IslandWindow : Window
         m.Items.Add(winKey);
         m.Items.Add(fadeAll);
         m.Items.Add(notify);
+        m.Items.Add(banners);
         m.Items.Add(displays);
         m.Items.Add(location);
         m.Items.Add(undockAll);
@@ -237,6 +246,8 @@ public partial class IslandWindow : Window
             winKey.IsChecked = settings.WinKeyOpensIsland;
             fadeAll.IsChecked = settings.FadeOnOtherDisplays;
             notify.IsChecked = settings.IslandNotifications;
+            banners.IsChecked = settings.HideWindowsBanners;
+            banners.IsEnabled = settings.IslandNotifications;
             update.Header = UpdateLabel;
             update.IsEnabled = !Updater.Busy;
             displays.Items.Clear();
@@ -506,7 +517,7 @@ public partial class IslandWindow : Window
                 bool moved = Math.Abs(dx) > 6 || Math.Abs(dy) > 6;
                 if (moveArmed)
                 {
-                    if (moved) { dragging = true; pickerOpen = mixerOpen = searchOpen = trayOpen = spotsOpen = false; }
+                    if (moved) { dragging = true; pickerOpen = mixerOpen = searchOpen = trayOpen = spotsOpen = updateOpen = false; }
                 }
                 else if (!pressMoved)
                 {
@@ -537,7 +548,7 @@ public partial class IslandWindow : Window
         // away from or the mouse comes onto it and takes over. A moment's grace while the keyboard is handed over.
         if (keyOpened && (over || now - keyOpenedAt > KeyFocusGrace && !OwnsForeground())) keyOpened = false;
         bool keyed = expanded && keyOpened;
-        bool engaged = over || menuOpen || dropHover || typing || searching || keyed || (IsMouseCaptureWithin && !dragging);
+        bool engaged = over || menuOpen || updateOpen || dropHover || typing || searching || keyed || (IsMouseCaptureWithin && !dragging);
         if (engaged) leaveSince = null;
         else leaveSince ??= now;
 
@@ -558,7 +569,7 @@ public partial class IslandWindow : Window
             expanded = want;
             // Opening hands the keyboard to the active tab once it's shown, so typing works without a click first.
             focusOnShow = expanded;
-            if (!expanded) pickerOpen = mixerOpen = searchOpen = trayOpen = spotsOpen = false;
+            if (!expanded) pickerOpen = mixerOpen = searchOpen = trayOpen = spotsOpen = updateOpen = false;
         }
 
         // A notification waits while the island is open (dropped if that's long), then shows for a few seconds,
@@ -757,9 +768,10 @@ public partial class IslandWindow : Window
         SearchPanel.Visibility = searchOpen && !pickerOpen && !dropHover ? Visibility.Visible : Visibility.Collapsed;
         MixerPanel.Visibility = mixerOpen && !pickerOpen && !searchOpen && !dropHover ? Visibility.Visible : Visibility.Collapsed;
         TrayPanel.Visibility = trayOpen && !pickerOpen && !searchOpen && !mixerOpen && !dropHover ? Visibility.Visible : Visibility.Collapsed;
-        LocationPanel.Visibility = spotsOpen && !pickerOpen && !searchOpen && !mixerOpen && !trayOpen && !dropHover ? Visibility.Visible : Visibility.Collapsed;
+        LocationPanel.Visibility = spotsOpen && !updateOpen && !pickerOpen && !searchOpen && !mixerOpen && !trayOpen && !dropHover ? Visibility.Visible : Visibility.Collapsed;
+        UpdatePanel.Visibility = updateOpen && !dropHover ? Visibility.Visible : Visibility.Collapsed;
         TrayEmpty.Visibility = trayApps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        EmptyHint.Visibility = active == null && !pickerOpen && !mixerOpen && !searchOpen && !trayOpen && !spotsOpen && !dropHover ? Visibility.Visible : Visibility.Collapsed;
+        EmptyHint.Visibility = active == null && !pickerOpen && !mixerOpen && !searchOpen && !trayOpen && !spotsOpen && !updateOpen && !dropHover ? Visibility.Visible : Visibility.Collapsed;
         PopOutButton.IsEnabled = active != null;
     }
 
@@ -792,7 +804,7 @@ public partial class IslandWindow : Window
         // Leave a floating window alone while the user is dragging it (dragging it away undocks it).
         if (active is { Floating: true } && active.Handle == dropCandidate) return;
 
-        bool show = expanded && settled && active != null && !pickerOpen && !mixerOpen && !searchOpen && !trayOpen && !spotsOpen && !dropHover && !dragging
+        bool show = expanded && settled && active != null && !pickerOpen && !mixerOpen && !searchOpen && !trayOpen && !spotsOpen && !updateOpen && !dropHover && !dragging
                     && ExpandedView.IsVisible && ContentArea.ActualWidth > 0;
         if (!show)
         {
@@ -1099,7 +1111,7 @@ public partial class IslandWindow : Window
             if (fg == host.Handle) host.PassFocus(d.Handle);
             else SetForegroundWindow(host.Handle);
         }
-        pickerOpen = mixerOpen = searchOpen = trayOpen = spotsOpen = false;
+        pickerOpen = mixerOpen = searchOpen = trayOpen = spotsOpen = updateOpen = false;
         RefreshTabs();
         UpdateScaleUi();
     }
@@ -1343,7 +1355,7 @@ public partial class IslandWindow : Window
     void TrayButton_Click(object sender, RoutedEventArgs e)
     {
         trayOpen = !trayOpen;
-        pickerOpen = mixerOpen = searchOpen = spotsOpen = false;
+        pickerOpen = mixerOpen = searchOpen = spotsOpen = updateOpen = false;
         if (trayOpen) trayCheckedAt = DateTime.MinValue; // list it fresh
     }
 
@@ -1732,7 +1744,7 @@ public partial class IslandWindow : Window
     void AddButton_Click(object sender, RoutedEventArgs e)
     {
         pickerOpen = !pickerOpen;
-        mixerOpen = searchOpen = trayOpen = spotsOpen = false;
+        mixerOpen = searchOpen = trayOpen = spotsOpen = updateOpen = false;
         if (pickerOpen)
             PickerList.ItemsSource = WindowUtil.EnumerateCandidates(docked.Select(d => d.Handle).ToHashSet());
     }
