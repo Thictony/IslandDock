@@ -1,0 +1,703 @@
+<Window x:Class="IslandDock.IslandWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:IslandDock"
+        Title="Island" WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True"
+        WindowStartupLocation="Manual" Left="-32000" Top="-32000" Width="200" Height="36"
+        FontFamily="Segoe UI Variable Text, Segoe UI" UseLayoutRounding="True" RenderOptions.BitmapScalingMode="HighQuality">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="Accent" Color="#FF0A84FF"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#DDFFFFFF"/>
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" Background="Transparent" CornerRadius="16">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#22FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#38FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.35"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Quick settings tile, modelled on the Windows 11 flyout. Tag holds the corner radius so split tiles can share it. -->
+        <SolidColorBrush x:Key="TileOn" Color="#FF4CC2FF"/>
+        <Style x:Key="Tile" TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="#F2FFFFFF"/>
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Width" Value="44"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Tag" Value="6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="b" Background="#2EFFFFFF" BorderBrush="#14FFFFFF" BorderThickness="1"
+                                CornerRadius="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#3DFFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="{StaticResource TileOn}"/>
+                                <Setter TargetName="b" Property="BorderBrush" Value="{StaticResource TileOn}"/>
+                                <Setter Property="Foreground" Value="#FF101010"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsChecked" Value="True"/>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="b" Property="Background" Value="#FF6CCEFF"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="b" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="TileLeft" TargetType="ToggleButton" BasedOn="{StaticResource Tile}">
+            <Setter Property="Tag" Value="6,0,0,6"/>
+        </Style>
+        <Style x:Key="TileRight" TargetType="ToggleButton" BasedOn="{StaticResource Tile}">
+            <Setter Property="Tag" Value="0,6,6,0"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="1,0,0,0"/>
+        </Style>
+
+        <Style x:Key="SliderFill" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Border Background="Transparent">
+                            <Border Height="4" CornerRadius="2" Background="{StaticResource TileOn}" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SliderRest" TargetType="RepeatButton">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RepeatButton">
+                        <Border Background="Transparent">
+                            <Border Height="4" CornerRadius="2" Background="#99FFFFFF" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="QuickSlider" TargetType="Slider">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Minimum" Value="0"/>
+            <Setter Property="Maximum" Value="100"/>
+            <Setter Property="IsMoveToPointEnabled" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Track x:Name="PART_Track" Height="22" VerticalAlignment="Center">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource SliderFill}" Command="Slider.DecreaseLarge"/>
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Style="{StaticResource SliderRest}" Command="Slider.IncreaseLarge"/>
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Cursor="Hand">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Grid Width="20" Height="20">
+                                                <Ellipse Fill="#FF454545" Stroke="#22FFFFFF"/>
+                                                <Ellipse x:Name="dot" Width="10" Height="10" Fill="{StaticResource TileOn}"/>
+                                            </Grid>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="dot" Property="Width" Value="13"/>
+                                                    <Setter TargetName="dot" Property="Height" Value="13"/>
+                                                </Trigger>
+                                                <Trigger Property="IsDragging" Value="True">
+                                                    <Setter TargetName="dot" Property="Width" Value="8"/>
+                                                    <Setter TargetName="dot" Property="Height" Value="8"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RowButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" Background="Transparent" CornerRadius="10" Padding="12,8">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#1FFFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#33FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Right-click menus, dark and rounded like the island. Its items pick up the styles inside it, submenus too. -->
+        <Style x:Key="IslandMenu" TargetType="ContextMenu">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="HasDropShadow" Value="False"/>
+            <Setter Property="Foreground" Value="#EEFFFFFF"/>
+            <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="#F51A1A1D" BorderBrush="#30FFFFFF" BorderThickness="1" CornerRadius="12" Padding="0,5" MinWidth="200">
+                            <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Resources>
+                <Style TargetType="Separator">
+                    <Setter Property="OverridesDefaultStyle" Value="True"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Separator">
+                                <Rectangle Height="1" Fill="#22FFFFFF" Margin="12,4"/>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+                <Style TargetType="MenuItem">
+                    <Setter Property="OverridesDefaultStyle" Value="True"/>
+                    <Setter Property="Foreground" Value="#EEFFFFFF"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="MenuItem">
+                                <Border x:Name="Bd" Background="Transparent" CornerRadius="7" Margin="5,1" Padding="8,7,12,7">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="22"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="Check" Text="&#xE73E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12"
+                                                   VerticalAlignment="Center" Foreground="#FF4CC2FF" Visibility="Hidden"/>
+                                        <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="Arrow" Grid.Column="2" Text="&#xE76C;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10"
+                                                   VerticalAlignment="Center" Margin="14,0,0,0" Opacity="0.7" Visibility="Collapsed"/>
+                                        <Popup x:Name="PART_Popup" Placement="Right" HorizontalOffset="10" VerticalOffset="-8" AllowsTransparency="True"
+                                               Focusable="False" PopupAnimation="Fade"
+                                               IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}">
+                                            <Border Background="#F51A1A1D" BorderBrush="#30FFFFFF" BorderThickness="1" CornerRadius="12" Padding="0,5" MinWidth="200">
+                                                <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                                            </Border>
+                                        </Popup>
+                                    </Grid>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsHighlighted" Value="True">
+                                        <Setter TargetName="Bd" Property="Background" Value="#24FFFFFF"/>
+                                    </Trigger>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+                                    </Trigger>
+                                    <Trigger Property="HasItems" Value="True">
+                                        <Setter TargetName="Arrow" Property="Visibility" Value="Visible"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </Style.Resources>
+        </Style>
+    </Window.Resources>
+
+    <Border x:Name="Shell" Background="#F20E0E10" BorderBrush="#26FFFFFF" BorderThickness="1" CornerRadius="18" ClipToBounds="True">
+        <Grid>
+            <!-- Collapsed pill -->
+            <!-- Clicking the pill opens it; its icons, wave and Discord buttons are quick actions of their own. -->
+            <Grid x:Name="CollapsedView" Background="Transparent" Cursor="Hand" MouseLeftButtonUp="Collapsed_Click">
+                <!-- Laid out along the pill; ApplyOrientation turns these stacks vertical on a side edge, contents kept upright. -->
+                <Grid x:Name="CollapsedInner" Margin="14,0">
+                    <StackPanel x:Name="CollapsedLead" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <TextBlock x:Name="ClockText" Foreground="White" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"
+                                   HorizontalAlignment="Center" TextAlignment="Center"/>
+                        <!-- Discord voice state; hidden while Discord isn't running or its state can't be read. -->
+                        <StackPanel x:Name="DiscordPanel" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center" Visibility="Collapsed">
+                            <Grid Width="16" Height="16" ToolTip="Mute Discord microphone" Background="Transparent" MouseLeftButtonUp="DiscordMic_Click">
+                                <TextBlock x:Name="DiscordMic" Text="&#xE720;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12"
+                                           Foreground="#CCFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Path x:Name="DiscordMicSlash" Data="M2,2 L14,14" Stroke="#FFFF453A" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Visibility="Collapsed"/>
+                            </Grid>
+                            <Grid x:Name="DiscordHeadsetButton" Width="16" Height="16" Margin="4,0,0,0" ToolTip="Deafen Discord" Background="Transparent" MouseLeftButtonUp="DiscordHeadset_Click">
+                                <TextBlock x:Name="DiscordHeadset" Text="&#xE7F6;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12"
+                                           Foreground="#CCFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Path x:Name="DiscordHeadsetSlash" Data="M2,2 L14,14" Stroke="#FFFF453A" StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Visibility="Collapsed"/>
+                            </Grid>
+                            <!-- Green while Discord is streaming the screen. -->
+                            <Grid x:Name="DiscordShareButton" Width="16" Height="16" Margin="4,0,0,0" ToolTip="Share your screen on Discord" Background="Transparent" MouseLeftButtonUp="DiscordShare_Click">
+                                <TextBlock x:Name="DiscordShare" Text="&#xE7F4;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12"
+                                           Foreground="White" Opacity="0.8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                        </StackPanel>
+                        <!-- Who's in the Discord call; filled by ShowCall. -->
+                        <StackPanel x:Name="DiscordCall" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed"/>
+                        <!-- What's playing, small: cover, title and play/pause. The cover and title open the player's tab;
+                             on a side edge only the cover shows. Shown by UpdateMiniPlayer. -->
+                        <StackPanel x:Name="MiniPlayer" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                    Visibility="Collapsed">
+                            <Border x:Name="MiniArtBox" Width="20" Height="20" CornerRadius="5" Background="#22FFFFFF" ClipToBounds="True"
+                                    VerticalAlignment="Center" Cursor="Hand" MouseLeftButtonUp="MiniPlayer_Click">
+                                <Grid>
+                                    <TextBlock Text="&#xE8D6;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10" Foreground="#99FFFFFF"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Image x:Name="MiniArt" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                </Grid>
+                            </Border>
+                            <!-- The title in a small box, scrolling round when it's longer than the box (StartMiniScroll). -->
+                            <Border x:Name="MiniTitleBox" Margin="6,0,0,0" Width="96" Height="20" CornerRadius="5" Background="#14FFFFFF"
+                                    ClipToBounds="True" VerticalAlignment="Center" Cursor="Hand" MouseLeftButtonUp="MiniPlayer_Click">
+                                <!-- A canvas, so the line can run past the box's edge (and be clipped by it) rather than being cut to fit. -->
+                                <Canvas>
+                                <StackPanel x:Name="MiniTitleRun" Orientation="Horizontal" Canvas.Left="6" Canvas.Top="2">
+                                    <StackPanel.RenderTransform>
+                                        <TranslateTransform x:Name="MiniTitleShift"/>
+                                    </StackPanel.RenderTransform>
+                                    <TextBlock x:Name="MiniTitle" Foreground="#E6FFFFFF" FontSize="11" FontWeight="SemiBold"/>
+                                    <!-- A second copy follows the first, so the loop joins up. -->
+                                    <TextBlock x:Name="MiniTitleCopy" Foreground="#E6FFFFFF" FontSize="11" FontWeight="SemiBold" Visibility="Collapsed"/>
+                                </StackPanel>
+                                </Canvas>
+                            </Border>
+                            <Button x:Name="MiniPrev" Style="{StaticResource IconButton}" Width="22" Height="22" FontSize="9" Margin="3,0,0,0"
+                                    Content="&#xE892;" ToolTip="Previous" Click="MediaPrev_Click"/>
+                            <Button x:Name="MiniPlayPause" Style="{StaticResource IconButton}" Width="22" Height="22" FontSize="10"
+                                    Content="&#xE768;" Click="MediaPlayPause_Click"/>
+                            <Button x:Name="MiniNext" Style="{StaticResource IconButton}" Width="22" Height="22" FontSize="9"
+                                    Content="&#xE893;" ToolTip="Next" Click="MediaNext_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel x:Name="CollapsedTrail" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <local:WaveBars x:Name="CollapsedWave" Margin="0,0,6,0" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"
+                                        ToolTip="Open what's playing" MouseLeftButtonUp="CollapsedWave_Click"/>
+                        <StackPanel x:Name="CollapsedIcons" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- A Windows notification: the closed island grows into a card for a few seconds. Click opens the app, right-click dismisses. -->
+            <Grid x:Name="NoticeView" Background="Transparent" Cursor="Hand" Margin="14,0,16,0" Visibility="Collapsed" Opacity="0"
+                  MouseLeftButtonUp="Notice_Click" MouseRightButtonUp="Notice_RightClick">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Width="40" Height="40" CornerRadius="10" Background="#22FFFFFF" VerticalAlignment="Center" ClipToBounds="True">
+                    <Grid>
+                        <TextBlock x:Name="NoticeGlyph" Text="&#xEA8F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18"
+                                   Foreground="#CCFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Image x:Name="NoticeIcon" Width="30" Height="30" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    </Grid>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <DockPanel LastChildFill="True">
+                        <TextBlock DockPanel.Dock="Right" Text="now" Foreground="#77FFFFFF" FontSize="11" Margin="8,0,0,0"/>
+                        <TextBlock x:Name="NoticeApp" Foreground="#99FFFFFF" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+                    <TextBlock x:Name="NoticeTitle" Foreground="White" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                    <TextBlock x:Name="NoticeBody" Foreground="#CCFFFFFF" FontSize="12" TextTrimming="CharacterEllipsis" TextWrapping="Wrap" MaxHeight="34"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Expanded panel -->
+            <Grid x:Name="ExpandedView" Margin="12" Opacity="0" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="34"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Quick settings navbar -->
+                <Border Grid.Row="0" Background="#0FFFFFFF" CornerRadius="12" Padding="6" Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*" MinWidth="60"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <local:StateButton x:Name="WifiToggle" Style="{StaticResource TileLeft}" Content="&#xE701;" Click="Wifi_Click"/>
+                            <local:StateButton x:Name="WifiMore" Style="{StaticResource TileRight}" Content="&#xE76C;" ToolTip="Wi-Fi settings" Click="WifiMore_Click"/>
+                            <local:StateButton x:Name="BluetoothToggle" Style="{StaticResource TileLeft}" Margin="6,0,0,0" Content="&#xE702;" Click="Bluetooth_Click"/>
+                            <local:StateButton x:Name="BluetoothMore" Style="{StaticResource TileRight}" Content="&#xE76C;" ToolTip="Bluetooth settings" Click="BluetoothMore_Click"/>
+                            <!-- Whatever is playing system-wide (the same session the Windows volume flyout controls). -->
+                            <Border x:Name="MediaPanel" Margin="6,0,0,0" Width="240" Height="32" CornerRadius="6" Padding="3,0,2,0"
+                                    Background="#2EFFFFFF" BorderBrush="#14FFFFFF" BorderThickness="1" Visibility="Collapsed">
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Left" Width="24" Height="24" CornerRadius="4" Background="#22FFFFFF" ClipToBounds="True">
+                                        <Grid>
+                                            <TextBlock Text="&#xE8D6;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="12" Foreground="#99FFFFFF"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <Image x:Name="MediaArt" Stretch="UniformToFill"/>
+                                        </Grid>
+                                    </Border>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button x:Name="MediaPrev" Style="{StaticResource IconButton}" Width="26" Height="26" FontSize="11" Content="&#xE892;" ToolTip="Previous" Click="MediaPrev_Click"/>
+                                        <Button x:Name="MediaPlayPause" Style="{StaticResource IconButton}" Width="26" Height="26" FontSize="12" Content="&#xE768;" Click="MediaPlayPause_Click"/>
+                                        <Button x:Name="MediaNext" Style="{StaticResource IconButton}" Width="26" Height="26" FontSize="11" Content="&#xE893;" ToolTip="Next" Click="MediaNext_Click"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="7,0,2,0" VerticalAlignment="Center">
+                                        <TextBlock x:Name="MediaTitle" Foreground="#F2FFFFFF" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock x:Name="MediaArtist" Foreground="#99FFFFFF" FontSize="10" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <DockPanel Grid.Column="1" Margin="10,0,4,0">
+                            <Button x:Name="MuteButton" DockPanel.Dock="Left" Style="{StaticResource IconButton}" Content="&#xE995;" Click="Mute_Click"/>
+                            <!-- Search, like the taskbar's: apps, settings, files and the web -->
+                            <Border x:Name="SearchBar" DockPanel.Dock="Right" Width="200" Height="32" CornerRadius="16" Margin="8,0,0,0"
+                                    Background="#1AFFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1" Cursor="IBeam"
+                                    PreviewMouseLeftButtonDown="SearchBar_MouseDown">
+                                <DockPanel Margin="12,0,6,0">
+                                    <TextBlock DockPanel.Dock="Left" Text="&#xE721;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"
+                                               Foreground="#CCFFFFFF" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                                    <Button x:Name="SearchClear" DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="22" Height="22" FontSize="9"
+                                            Content="&#xE711;" ToolTip="Clear" Visibility="Collapsed" Click="SearchClear_Click"/>
+                                    <Grid Margin="9,0,0,0">
+                                        <TextBlock x:Name="SearchPlaceholder" Text="Search" Foreground="#88FFFFFF" FontSize="13"
+                                                   VerticalAlignment="Center" IsHitTestVisible="False"/>
+                                        <TextBox x:Name="SearchBox" Background="Transparent" BorderThickness="0" Foreground="#F2FFFFFF"
+                                                 CaretBrush="White" FontSize="13" VerticalAlignment="Center" Padding="0"
+                                                 TextChanged="SearchBox_TextChanged" PreviewKeyDown="SearchBox_KeyDown"
+                                                 Focusable="False" GotKeyboardFocus="SearchBox_GotFocus" LostKeyboardFocus="SearchBox_LostFocus"/>
+                                    </Grid>
+                                </DockPanel>
+                            </Border>
+                            <Button x:Name="MixerButton" DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="40" ToolTip="Volume mixer" Click="SoundOutput_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE9E9;" VerticalAlignment="Center"/>
+                                    <TextBlock Text="&#xE76C;" FontSize="9" Margin="3,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Slider x:Name="VolumeSlider" Style="{StaticResource QuickSlider}" Margin="6,0,8,0" VerticalAlignment="Center"/>
+                        </DockPanel>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <Button Style="{StaticResource IconButton}" Content="&#xE713;" ToolTip="All settings" Click="Settings_Click"/>
+                            <!-- Sign out, restart, shut down, in a menu like Start's power button. -->
+                            <Button Style="{StaticResource IconButton}" Content="&#xE7E8;" ToolTip="Power" Margin="2,0,0,0" Click="Power_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <DockPanel Grid.Row="1" LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0">
+                        <Button x:Name="ScaleDownButton" Style="{StaticResource IconButton}" Content="&#xE71F;" ToolTip="Smaller" ToolTipService.ShowOnDisabled="True" Click="ScaleDown_Click"/>
+                        <Button x:Name="ScaleResetButton" Style="{StaticResource IconButton}" Width="44" FontSize="11"
+                                FontFamily="Segoe UI Variable Text, Segoe UI" Content="100%" ToolTip="Reset size" Click="ScaleReset_Click"/>
+                        <Button x:Name="ScaleUpButton" Style="{StaticResource IconButton}" Content="&#xE8A3;" ToolTip="Larger" Click="ScaleUp_Click"/>
+                        <Border Width="1" Height="18" Background="#33FFFFFF" Margin="4,0"/>
+                        <Button x:Name="TrayButton" Style="{StaticResource IconButton}" Content="&#xE70E;" ToolTip="Tray apps" Click="TrayButton_Click"/>
+                        <Button x:Name="AddButton" Style="{StaticResource IconButton}" Content="&#xE710;" ToolTip="Dock a window" Click="AddButton_Click"/>
+                        <Button x:Name="PopOutButton" Style="{StaticResource IconButton}" Content="&#xE8A7;" ToolTip="Pop out current window" Click="PopOut_Click"/>
+                        <Button x:Name="PinButton" Style="{StaticResource IconButton}" Content="&#xE718;" ToolTip="Keep expanded" Click="Pin_Click"/>
+                        <Button x:Name="MenuButton" Style="{StaticResource IconButton}" Content="&#xE712;" ToolTip="More" Click="Menu_Click"/>
+                    </StackPanel>
+                    <TextBlock x:Name="StatusText" DockPanel.Dock="Right" Foreground="#FFFF9F0A" FontSize="12"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="320"/>
+                    <ItemsControl x:Name="TabsList" ClipToBounds="True">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <local:TabStripPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <!-- The icon sits in a wider cell so the audio ring around it has room; the padding makes up for it. -->
+                                <Border x:Name="tab" Margin="0,0,6,0" Padding="4,0,2,0" Height="32" CornerRadius="16"
+                                        Background="#14FFFFFF" Cursor="Hand" MouseLeftButtonUp="Tab_Click" MouseRightButtonUp="Tab_RightClick" ToolTip="{Binding Title}">
+                                    <Grid x:Name="row" ClipToBounds="True">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="28"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <local:WaveRing Level="{Binding Level}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                        Visibility="{Binding Playing, Converter={StaticResource BoolToVisibility}}"/>
+                                        <Image Source="{Binding Icon}" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="title" Grid.Column="1" Text="{Binding Title}" TextTrimming="CharacterEllipsis"
+                                                   Margin="2,0,2,0" Foreground="#EEFFFFFF" FontSize="12" VerticalAlignment="Center"/>
+                                        <Button x:Name="popOut" Grid.Column="2" Style="{StaticResource IconButton}" Width="26" Height="26" FontSize="9"
+                                                Content="&#xE8BB;" ToolTip="Close" Click="TabUndock_Click"/>
+                                    </Grid>
+                                </Border>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                        <Setter TargetName="tab" Property="Background" Value="#38FFFFFF"/>
+                                    </DataTrigger>
+                                    <!-- A taskbar window that isn't docked yet: clicking docks it; its X closes the window. -->
+                                    <DataTrigger Binding="{Binding IsDocked}" Value="False">
+                                        <!-- Faint, but enough to tell an open app's tab from a closed pin. -->
+                                        <Setter TargetName="tab" Property="Background" Value="#10FFFFFF"/>
+                                        <Setter TargetName="title" Property="Foreground" Value="#99FFFFFF"/>
+                                        <Setter TargetName="popOut" Property="ToolTip" Value="Close window"/>
+                                    </DataTrigger>
+                                    <!-- A pinned app that isn't open: a bare icon, like a taskbar pin; clicking opens it as a tab. -->
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsPin}" Value="True"/>
+                                            <Condition Binding="{Binding IsLoading}" Value="False"/>
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter TargetName="tab" Property="Background" Value="Transparent"/>
+                                        <Setter TargetName="title" Property="Visibility" Value="Collapsed"/>
+                                        <Setter TargetName="popOut" Property="Visibility" Value="Collapsed"/>
+                                        <Setter TargetName="tab" Property="Padding" Value="0"/>
+                                        <Setter TargetName="row" Property="HorizontalAlignment" Value="Center"/>
+                                        <Setter TargetName="tab" Property="Opacity" Value="0.7"/>
+                                    </MultiDataTrigger>
+                                    <!-- Once clicked, the pin is already a tab, pulsing until the app's window docks into it. -->
+                                    <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                        <Setter TargetName="popOut" Property="Visibility" Value="Collapsed"/>
+                                        <DataTrigger.EnterActions>
+                                            <BeginStoryboard x:Name="pinPulse">
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetName="tab" Storyboard.TargetProperty="Opacity"
+                                                                     From="1" To="0.35" Duration="0:0:0.5" AutoReverse="True" RepeatBehavior="Forever"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                        <DataTrigger.ExitActions>
+                                            <StopStoryboard BeginStoryboardName="pinPulse"/>
+                                        </DataTrigger.ExitActions>
+                                    </DataTrigger>
+                                    <!-- Squeezed by the strip: just the icon (and wave), centred. -->
+                                    <DataTrigger Binding="{Binding (local:TabStripPanel.IsCompact), ElementName=tab}" Value="True">
+                                        <Setter TargetName="title" Property="Visibility" Value="Collapsed"/>
+                                        <Setter TargetName="popOut" Property="Visibility" Value="Collapsed"/>
+                                        <Setter TargetName="tab" Property="Padding" Value="0"/>
+                                        <Setter TargetName="row" Property="HorizontalAlignment" Value="Center"/>
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </DockPanel>
+
+                <Border x:Name="ContentArea" Grid.Row="2" Margin="0,8,0,0" CornerRadius="10" Background="#FF161618">
+                    <Grid>
+                        <StackPanel x:Name="EmptyHint" VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <TextBlock Text="&#xE737;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="30"
+                                       Foreground="#55FFFFFF" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Click a tab to dock it, or drag a window onto the island" Foreground="#99FFFFFF" FontSize="13"
+                                       Margin="0,12,0,0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <Grid x:Name="PickerPanel" Visibility="Collapsed" Margin="6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="Choose a window to dock" Foreground="#99FFFFFF" FontSize="12" Margin="12,6,0,6"/>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="PickerList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource RowButton}" Tag="{Binding}" Click="PickerItem_Click">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Image Source="{Binding Icon}" Width="20" Height="20" VerticalAlignment="Center"/>
+                                                    <StackPanel Margin="12,0,0,0">
+                                                        <TextBlock Text="{Binding Title}" Foreground="#EEFFFFFF" FontSize="13"
+                                                                   TextTrimming="CharacterEllipsis" MaxWidth="620"/>
+                                                        <TextBlock Text="{Binding ProcessName}" Foreground="#88FFFFFF" FontSize="11"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+
+                        <!-- Search results for the navbar's search bar: apps, settings, files (Windows Search index) and the web -->
+                        <Grid x:Name="SearchPanel" Visibility="Collapsed" Margin="6">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="SearchHint" Foreground="#88FFFFFF" FontSize="12" Margin="18,4,0,4"/>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="SearchList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <TextBlock Text="{Binding Name}" Foreground="#AAFFFFFF" FontSize="12" FontWeight="SemiBold" Margin="14,10,0,4"
+                                                           Visibility="{Binding IsHeader, Converter={StaticResource BoolToVisibility}}"/>
+                                                <Button Style="{StaticResource RowButton}" Tag="{Binding}" Click="SearchItem_Click" ToolTip="{Binding FilePath}"
+                                                        Visibility="{Binding IsItem, Converter={StaticResource BoolToVisibility}}">
+                                                    <DockPanel>
+                                                        <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="28" Height="28" FontSize="12"
+                                                                Content="&#xE838;" ToolTip="Show in folder" Tag="{Binding}" Click="SearchReveal_Click"
+                                                                Visibility="{Binding CanReveal, Converter={StaticResource BoolToVisibility}}"/>
+                                                        <Grid Width="20" Height="20" VerticalAlignment="Center">
+                                                            <Image Source="{Binding Icon}"/>
+                                                            <TextBlock Text="{Binding Glyph}" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15"
+                                                                       Foreground="#DDFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       Visibility="{Binding HasGlyph, Converter={StaticResource BoolToVisibility}}"/>
+                                                        </Grid>
+                                                        <StackPanel Margin="12,0,8,0" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Name}" Foreground="#EEFFFFFF" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Text="{Binding Detail}" Foreground="#88FFFFFF" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                                        </StackPanel>
+                                                    </DockPanel>
+                                                </Button>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+
+                        <!-- Volume mixer dropdown, anchored under the sound button -->
+                        <Border x:Name="MixerPanel" Visibility="Collapsed" Width="380" Margin="0,6,6,6" Padding="6"
+                                HorizontalAlignment="Right" VerticalAlignment="Top" CornerRadius="12"
+                                Background="#FF1E1E20" BorderBrush="#26FFFFFF" BorderThickness="1">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Volume mixer" Foreground="#EEFFFFFF" FontSize="13" FontWeight="SemiBold" Margin="10,6,0,8"/>
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <TextBlock x:Name="MixerEmpty" Text="No apps are playing audio" Foreground="#88FFFFFF"
+                                                   FontSize="12" Margin="10,4,0,8"/>
+                                        <ItemsControl x:Name="MixerList">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="6,2" Height="40">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="110"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="32"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Image Source="{Binding Icon}" Width="18" Height="18" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Name}" ToolTip="{Binding Name}" Foreground="#EEFFFFFF"
+                                                                   FontSize="12" Margin="8,0,4,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                        <Button Grid.Column="2" Style="{StaticResource IconButton}" Content="{Binding Glyph}"
+                                                                ToolTip="Mute" Tag="{Binding}" Click="MixerMute_Click"/>
+                                                        <Slider Grid.Column="3" Style="{StaticResource QuickSlider}" Margin="4,0" VerticalAlignment="Center"
+                                                                Value="{Binding Volume, Mode=TwoWay}"/>
+                                                        <TextBlock Grid.Column="4" Text="{Binding Volume, StringFormat={}{0:0}}" Foreground="#99FFFFFF"
+                                                                   FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                                <Button Grid.Row="2" Style="{StaticResource RowButton}" Margin="0,6,0,0" Click="SoundSettings_Click">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="&#xE76C;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                   FontSize="10" Foreground="#99FFFFFF" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Sound settings" Foreground="#EEFFFFFF" FontSize="12"/>
+                                    </DockPanel>
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- Apps running only in the tray, anchored under the tray button -->
+                        <Border x:Name="TrayPanel" Visibility="Collapsed" Width="300" Margin="0,6,6,6" Padding="6"
+                                HorizontalAlignment="Right" VerticalAlignment="Top" CornerRadius="12"
+                                Background="#FF1E1E20" BorderBrush="#26FFFFFF" BorderThickness="1">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Tray apps" Foreground="#EEFFFFFF" FontSize="13" FontWeight="SemiBold" Margin="10,6,0,8"/>
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                    <StackPanel>
+                                        <TextBlock x:Name="TrayEmpty" Text="No apps are running in the tray" Foreground="#88FFFFFF"
+                                                   FontSize="12" Margin="10,4,0,8"/>
+                                        <ItemsControl x:Name="TrayList">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Style="{StaticResource RowButton}" Tag="{Binding}" Click="TrayItem_Click" ToolTip="{Binding Path}">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Image Source="{Binding Icon}" Width="18" Height="18" VerticalAlignment="Center"/>
+                                                            <TextBlock Text="{Binding Title}" Foreground="#EEFFFFFF" FontSize="12" Margin="10,0,0,0"
+                                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="230"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+
+                        <Grid x:Name="DropOverlay" Visibility="Collapsed" Margin="10">
+                            <Rectangle Stroke="{StaticResource Accent}" StrokeThickness="2" StrokeDashArray="4 3" RadiusX="10" RadiusY="10"
+                                       Fill="#140A84FF"/>
+                            <TextBlock Text="Release to dock" Foreground="{StaticResource Accent}" FontSize="16" FontWeight="SemiBold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

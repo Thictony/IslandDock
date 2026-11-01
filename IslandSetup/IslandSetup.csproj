@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    One program, two builds. With PayloadZip set (build-installer.ps1 does this) it carries the whole app, .NET runtime
+    included, and installs it. Without it, it's the uninstaller the installer puts beside the app.
+    .NET Framework 4.8 is part of Windows 10 and 11, so neither needs anything installed first.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ApplicationManifest>setup.manifest</ApplicationManifest>
+    <AssemblyName>IslandSetup</AssemblyName>
+    <RootNamespace>IslandSetup</RootNamespace>
+    <Version>1.0.0</Version>
+    <Product>IslandDock</Product>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(PayloadZip)' != ''">
+    <EmbeddedResource Include="$(PayloadZip)" LogicalName="payload.zip" />
+  </ItemGroup>
+
+</Project>
