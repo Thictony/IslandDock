@@ -21,6 +21,7 @@ public partial class IslandWindow : Window
     const double CollapsedMaxLong = 340, CollapsedShort = 36, ExpandedW = 780, ExpandedH = 540, EdgeMargin = 8, DropSlop = 30;
     const double MinScale = 1.0, MaxScale = 1.6, ScaleStep = 0.1;
     static readonly TimeSpan CollapseDelay = TimeSpan.FromMilliseconds(450);
+    const long TypingHoldMs = 5000;
     static readonly TimeSpan HoverOpenDelay = TimeSpan.FromSeconds(1);
     static readonly TimeSpan IdleFadeDelay = TimeSpan.FromSeconds(10);
     const double IdleOpacity = 0.2;
@@ -542,7 +543,9 @@ public partial class IslandWindow : Window
         // Typing into a docked window counts too, so the island doesn't snap shut when the mouse drifts off it. Not over
         // a game, though: there the mouse going back to the game means back to playing, and it shouldn't take a click.
         host.FocusTarget = active is { Floating: false } ? active.Handle : IntPtr.Zero;
-        bool typing = expanded && !immersive && host.FocusTarget != IntPtr.Zero && GetForegroundWindow() == host.Handle;
+        // Only actual typing: opening the island hands the docked window the keyboard, which alone would keep it open for good.
+        bool typing = expanded && !immersive && host.FocusTarget != IntPtr.Zero && GetForegroundWindow() == host.Handle
+                      && Environment.TickCount64 - KeyboardHook.LastKeyAt < TypingHoldMs;
         // Same for typing a file search: the island itself has the keyboard then.
         bool searching = expanded && searchOpen && IsActive;
         // Opened from the keyboard (Alt+Tab, the Windows key): stays open while it has the keyboard, until it's clicked
@@ -1399,7 +1402,8 @@ public partial class IslandWindow : Window
 
         // The clock, Discord status and wave, which always show.
         ClockText.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        double fixedW = 2 * pad + (v ? ClockText.DesiredSize.Height : ClockText.DesiredSize.Width)
+        // Shell's border takes a pixel off each end, which would otherwise come out of the clock when it's alone.
+        double fixedW = 2 * pad + 2 + (v ? ClockText.DesiredSize.Height : ClockText.DesiredSize.Width)
             + (DiscordPanel.Visibility == Visibility.Visible ? 64 : 0)
             + CallLength(v)
             + MiniPlayerLength(v)
@@ -1678,6 +1682,14 @@ public partial class IslandWindow : Window
                 pin.Click += (_, _) => { TaskbarPins.PinWindow(appId, path); RefreshPins(); };
                 m.Items.Add(pin);
             }
+            foreach (var other in Islands.All.Where(i => i != this))
+            {
+                var screen = Forms.Screen.AllScreens.FirstOrDefault(s => s.DeviceName == other.Display);
+                if (screen == null) continue;
+                var send = new MenuItem { Header = "Pin to island on " + Islands.Label(screen) };
+                send.Click += (_, _) => SendToIsland(tab, other);
+                m.Items.Add(send);
+            }
             var close = new MenuItem { Header = "Close window" };
             close.Click += (_, _) => CloseTab(h);
             var kill = new MenuItem { Header = "End process" };
@@ -1689,6 +1701,24 @@ public partial class IslandWindow : Window
         Dress(m);
         m.PlacementTarget = (UIElement)sender;
         m.IsOpen = true;
+    }
+
+    /// <summary>Moves a tab to another display's island and opens it there; a window not docked yet docks there.</summary>
+    void SendToIsland(object tab, IslandWindow target)
+    {
+        if (tab is DockedWindow d)
+        {
+            if (!docked.Contains(d)) return;
+            if (!d.MoveTo(target.host.Handle))
+            {
+                ShowStatus("Couldn't move that window.");
+                return;
+            }
+            Remove(d, () => { });
+            target.docked.Add(d);
+        }
+        target.OpenInto(tab);
+        RefreshTabs();
     }
 
     MenuItem UnpinItem(PinEntry pin)

@@ -140,6 +140,14 @@ internal sealed class DockedWindow : INotifyPropertyChanged
         return true;
     }
 
+    /// <summary>Hands the window to another island's host. It's still docked, and still remembers how it looked before.</summary>
+    public bool MoveTo(IntPtr host)
+    {
+        if (Floating) return true;
+        SetParent(Handle, host);
+        return GetParent(Handle) == host;
+    }
+
     /// <summary>For a floating window, the screen rect it occupies; for a docked child, ignored in favour of the host's client area.</summary>
     public void Place(RECT screen, RECT hostClient)
     {

@@ -43,6 +43,10 @@ internal static class KeyboardHook
     /// <summary>The Windows key pressed and let go on its own. Returns false to leave it to Windows (Start).</summary>
     public static Func<bool>? WinKey;
 
+    static long lastKeyAt;
+    /// <summary>When a key was last pressed, for telling typing from a window merely having the keyboard. Only ever when, not which.</summary>
+    public static long LastKeyAt => System.Threading.Volatile.Read(ref lastKeyAt);
+
     [StructLayout(LayoutKind.Sequential)] struct MSG { public IntPtr hwnd; public uint message; public IntPtr wParam, lParam; public uint time; public int x, y; }
     [DllImport("user32.dll")] static extern int GetMessage(out MSG msg, IntPtr hwnd, uint min, uint max);
     [DllImport("user32.dll")] static extern bool PostThreadMessage(uint thread, uint msg, IntPtr wParam, IntPtr lParam);
@@ -80,6 +84,7 @@ internal static class KeyboardHook
         {
             var k = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
             bool down = (int)wParam is WM_KEYDOWN or WM_SYSKEYDOWN;
+            if (down) System.Threading.Volatile.Write(ref lastKeyAt, Environment.TickCount64);
             // Keys this sends itself go straight through.
             try
             {
